@@ -153,7 +153,7 @@ namespace OpenTherm {
       }
     }
     else if ( status == OpenThermStatus::RESPONSE_RECEIVING ) {
-      uint32 bitDuration = newTs - responseTimestamp;
+      uint32_t bitDuration = newTs - responseTimestamp;
       if ( ( newTs - responseTimestamp ) > 750 && bitDuration < 1300 ) { // bitDuration should not bigger than 1500
         if ( responseBitIndex < 32 ) {
           response = ( response << 1 ) | !readState();
