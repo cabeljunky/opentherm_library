@@ -26,7 +26,7 @@ namespace OpenTherm {
 
 
   enum OpenThermMessageType {
-    /*  Master to Slave */®Rƒ
+    /*  Master to Slave */
     READ_DATA = B000,
     READ = READ_DATA, // for backwared compatibility
     WRITE_DATA = B001,
