@@ -130,6 +130,9 @@ namespace OpenTherm {
   };
 
   class OpenTherm {
+  public:
+    volatile OpenThermStatus status;
+
   private:
     const int inPin;
     const int outPin;
@@ -142,8 +145,6 @@ namespace OpenTherm {
 
   public:
     OpenTherm( int inPin = 4, int outPin = 5, bool isSlave = false );
-
-    volatile OpenThermStatus status;
 
     void begin( void(*handleInterruptCallback)( void ) );
 
