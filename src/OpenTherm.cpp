@@ -57,9 +57,19 @@ namespace OpenTherm {
   }
 
   void OpenTherm::sendBit( bool high ) {
-    if ( high ) setActiveState(); else setIdleState();
+    if ( high ) {
+      setActiveState();
+    }
+    else {
+      setIdleState();
+    }
     delayMicroseconds( 500 );
-    if ( high ) setIdleState(); else setActiveState();
+    if ( high ) {
+      setIdleState();
+    }
+    else {
+      setActiveState();
+    }
     delayMicroseconds( 500 );
   }
 
@@ -69,15 +79,16 @@ namespace OpenTherm {
     const bool ready = isReady();
     interrupts();
 
-    if ( !ready )
+    if ( !ready ) {
       return false;
+    }
 
     status = OpenThermStatus::REQUEST_SENDING;
     response = 0;
     responseStatus = OpenThermResponseStatus::NONE;
 
     sendBit( HIGH ); //start bit
-    for ( int i = 31; i >= 0; i-- ) {
+    for ( int i = 31; i >= 0; --i ) {
       sendBit( bitRead( request, i ) );
     }
     sendBit( HIGH ); //stop bit
@@ -85,11 +96,14 @@ namespace OpenTherm {
 
     status = OpenThermStatus::RESPONSE_WAITING;
     responseTimestamp = micros();
+
     return true;
   }
 
   unsigned long OpenTherm::sendRequest( unsigned long request ) {
-    if ( !sendRequestAync( request ) ) return 0;
+    if ( !sendRequestAync( request ) ) {
+      return 0;
+    }
     while ( !isReady() ) {
       process();
       yield();
@@ -103,12 +117,13 @@ namespace OpenTherm {
     responseStatus = OpenThermResponseStatus::NONE;
 
     sendBit( HIGH ); //start bit
-    for ( int i = 31; i >= 0; i-- ) {
+    for ( int i = 31; i >= 0; --i ) {
       sendBit( bitRead( request, i ) );
     }
     sendBit( HIGH ); //stop bit
     setIdleState();
     status = OpenThermStatus::READY;
+
     return true;
   }
 
@@ -122,7 +137,7 @@ namespace OpenTherm {
 
   void IRAM_ATTR OpenTherm::handleInterrupt( ) {
     if ( isReady() ) {
-      if ( isSlave && readState() == HIGH ) {
+      if ( isSlave && ( readState() == HIGH ) ) {
         status = OpenThermStatus::RESPONSE_WAITING;
       }
       else {
@@ -131,6 +146,7 @@ namespace OpenTherm {
     }
 
     unsigned long newTs = micros();
+
     if ( status == OpenThermStatus::RESPONSE_WAITING ) {
       if ( readState() == HIGH ) {
         status = OpenThermStatus::RESPONSE_START_BIT;
@@ -142,7 +158,7 @@ namespace OpenTherm {
       }
     }
     else if ( status == OpenThermStatus::RESPONSE_START_BIT ) {
-      if ( ( newTs - responseTimestamp < 750 ) && readState() == LOW ) {
+      if ( ( newTs - responseTimestamp < 750 ) && ( readState() == LOW ) ) {
         status = OpenThermStatus::RESPONSE_RECEIVING;
         responseTimestamp = newTs;
         responseBitIndex = 0;
@@ -154,7 +170,8 @@ namespace OpenTherm {
     }
     else if ( status == OpenThermStatus::RESPONSE_RECEIVING ) {
       uint32_t bitDuration = newTs - responseTimestamp;
-      if ( ( newTs - responseTimestamp ) > 750 && bitDuration < 1300 ) { // bitDuration should not bigger than 1500
+
+      if ( ( ( newTs - responseTimestamp ) > 750 ) && ( bitDuration < 1300 ) ) { // bitDuration should not bigger than 1500
         if ( responseBitIndex < 32 ) {
           response = ( response << 1 ) | !readState();
           responseTimestamp = newTs;
@@ -176,7 +193,7 @@ namespace OpenTherm {
 
     if ( st == OpenThermStatus::READY ) return;
     unsigned long newTs = micros();
-    if ( st != OpenThermStatus::NOT_INITIALIZED && st != OpenThermStatus::DELAY && ( newTs - ts ) > 1000000 ) {
+    if ( ( st != OpenThermStatus::NOT_INITIALIZED ) && (st != OpenThermStatus::DELAY) && ( ( newTs - ts ) > 1000000 ) ) {
       status = OpenThermStatus::READY;
       responseStatus = OpenThermResponseStatus::TIMEOUT;
       if ( processResponseCallback != NULL ) {
@@ -197,20 +214,20 @@ namespace OpenTherm {
         processResponseCallback( response, responseStatus );
       }
     }
-    else if ( st == OpenThermStatus::DELAY ) {
-      if ( ( newTs - ts ) > 100000 ) {
+    else if( ( st == OpenThermStatus::DELAY ) && ( ( newTs - ts ) > 100000 ) ) {
         status = OpenThermStatus::READY;
-      }
     }
   }
 
-  bool OpenTherm::parity( unsigned long frame ) //odd parity
-  {
+  bool OpenTherm::parity( unsigned long frame ) {//odd parity
     byte p = 0;
     while ( frame > 0 ) {
-      if ( frame & 1 ) p++;
+      if ( frame & 1 ) {
+        ++p;
+      }
       frame = frame >> 1;
     }
+
     return ( p & 1 );
   }
 
@@ -229,7 +246,10 @@ namespace OpenTherm {
       request |= 1ul << 28;
     }
     request |= ( ( unsigned long ) id ) << 16;
-    if ( parity( request ) ) request |= ( 1ul << 31 );
+    if ( parity( request ) ) {
+      request |= ( 1ul << 31 );
+    }
+
     return request;
   }
 
@@ -237,19 +257,29 @@ namespace OpenTherm {
     unsigned long response = data;
     response |= type << 28;
     response |= ( ( unsigned long ) id ) << 16;
-    if ( parity( response ) ) response |= ( 1ul << 31 );
+
+    if ( parity( response ) ) {
+      response |= ( 1ul << 31 );
+    }
+
     return response;
   }
 
   bool OpenTherm::isValidResponse( unsigned long response ) {
-    if ( parity( response ) ) return false;
+    if ( parity( response ) ) {
+      return false;
+    }
     byte msgType = ( response << 1 ) >> 29;
+
     return msgType == READ_ACK || msgType == WRITE_ACK;
   }
 
   bool OpenTherm::isValidRequest( unsigned long request ) {
-    if ( parity( request ) ) return false;
+    if ( parity( request ) ) {
+      return false;
+    }
     byte msgType = ( request << 1 ) >> 29;
+
     return msgType == READ_DATA || msgType == WRITE_DATA;
   }
 
@@ -341,19 +371,26 @@ namespace OpenTherm {
 
   uint16_t OpenTherm::getUInt( const unsigned long response ) const {
     const uint16_t u88 = response & 0xffff;
+
     return u88;
   }
 
   float OpenTherm::getFloat( const unsigned long response ) const {
     const uint16_t u88 = getUInt( response );
     const float f = ( u88 & 0x8000 ) ? -( 0x10000L - u88 ) / 256.0f : u88 / 256.0f;
+
     return f;
   }
 
   unsigned int OpenTherm::temperatureToData( float temperature ) {
-    if ( temperature < 0 ) temperature = 0;
-    if ( temperature > 100 ) temperature = 100;
+    if ( temperature < 0 ) {
+      temperature = 0;
+    }
+    else if ( temperature > 100 ) {
+      temperature = 100;
+    }
     unsigned int data = ( unsigned int ) ( temperature * 256 );
+
     return data;
   }
 
@@ -422,8 +459,12 @@ namespace OpenTherm {
  * Some ventilation systems have special values for nominal value 0,1,2,3
  */
   unsigned int OpenTherm::setVentilation(unsigned int nominal_value) {
-    if (nominal_value < 0) nominal_value = 0;
-    if (nominal_value > 100) nominal_value = 100;
+    if (nominal_value <= 0) {
+      nominal_value = 0;
+    }
+    else if (nominal_value > 100){
+      nominal_value = 100;
+    }
     unsigned long response = sendRequest(buildRequest(OpenThermRequestType::WRITE, OpenThermMessageID::VentNomVentSet, nominal_value));
     return isValidResponse(response) ? getUInt(response) : 0;
   }
@@ -433,56 +474,47 @@ namespace OpenTherm {
   // Often respond with temperature '80' when the sensors aren't available
   //
   float OpenTherm::getVentSupplyInTemperature() {
-    unsigned long response = sendRequest(
-        buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentTsupplyin, 0));
+    unsigned long response = sendRequest(buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentTsupplyin, 0));
     return isValidResponse(response) ? getFloat(response) : 0;
   }
 
   float OpenTherm::getVentSupplyOutTemperature() {
-    unsigned long response = sendRequest(
-        buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentTsupplyout, 0));
+    unsigned long response = sendRequest(buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentTsupplyout, 0));
     return isValidResponse(response) ? getFloat(response) : 0;
   }
 
   float OpenTherm::getVentExhaustInTemperature() {
-    unsigned long response = sendRequest(
-        buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentTexhaustin, 0));
+    unsigned long response = sendRequest(buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentTexhaustin, 0));
     return isValidResponse(response) ? getFloat(response) : 0;
   }
 
   float OpenTherm::getVentExhaustOutTemperature() {
-    unsigned long response = sendRequest(
-        buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentTexhaustout, 0));
+    unsigned long response = sendRequest(buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentTexhaustout, 0));
     return isValidResponse(response) ? getFloat(response) : 0;
   }
 
   bool OpenTherm::getFaultIndication() {
-    unsigned long response = sendRequest(buildRequest(
-        OpenThermRequestType::READ, OpenThermMessageID::VentStatus,0));
+    unsigned long response = sendRequest(buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentStatus,0));
     return isValidResponse(response)? (getUInt(response) & 0x1) : 0;
   }
 
   bool OpenTherm::getVentilationMode() {
-    unsigned long response = sendRequest(buildRequest(
-        OpenThermRequestType::READ, OpenThermMessageID::VentStatus,0));
+    unsigned long response = sendRequest(buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentStatus,0));
     return isValidResponse(response) ? (getUInt(response) & 0x2) >> 1: 0;
   }
 
   bool OpenTherm::getBypassStatus() {
-    unsigned long response = sendRequest(buildRequest(
-        OpenThermRequestType::READ, OpenThermMessageID::VentStatus,0));
+    unsigned long response = sendRequest(buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentStatus,0));
     return isValidResponse(response) ? (getUInt(response) & 0x4) >> 2: 0;
   }
 
   bool OpenTherm::getBypassAutomaticStatus() {
-    unsigned long response = sendRequest(buildRequest(
-        OpenThermRequestType::READ, OpenThermMessageID::VentStatus,0));
+    unsigned long response = sendRequest(buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentStatus,0));
     return isValidResponse(response) ? (getUInt(response) & 0x8) >> 3: 0;
   }
 
   bool OpenTherm::getDiagnosticIndication() {
-    unsigned long response = sendRequest(buildRequest(
-        OpenThermRequestType::READ, OpenThermMessageID::VentStatus,0));
+    unsigned long response = sendRequest(buildRequest(OpenThermRequestType::READ, OpenThermMessageID::VentStatus,0));
     return isValidResponse(response)? (getUInt(response) & 0x20) >> 5: 0;
   }
 }
